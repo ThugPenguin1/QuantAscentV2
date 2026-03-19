@@ -1,3 +1,4 @@
+from telegram_notifier import send_telegram
 import os
 import time
 import json
@@ -50,7 +51,7 @@ PAIR_PRECISION = {
 }
 
 LOG_DIR = "logs"
-PRICE_POLL_INTERVAL = 300
+PRICE_POLL_INTERVAL = 300  # 5 minutes
 
 
 class PriceHistory:
@@ -327,6 +328,13 @@ def main():
     print(f"Started: {datetime.utcnow().isoformat()}")
     print("=" * 60)
 
+    send_telegram(
+        f"🚀 Bot started\n"
+        f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+        f"Strategy: Momentum + PAXG Hedge\n"
+        f"Rebalance: every {PARAMS['rebalance_hours']}h"
+    )
+
     if not API_KEY or not API_SECRET:
         print("Missing API credentials in .env")
         return
@@ -448,6 +456,17 @@ def main():
 
                 print(f"  Target: {json.dumps({k: f'{v:.1%}' for k, v in target_weights.items()})}")
 
+                send_telegram(
+                    f"🔄 REBALANCE\n"
+                    f"Time: {now.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+                    f"Portfolio: ${total_value:,.2f}\n"
+                    f"Drawdown: {dd:.2%}\n"
+                    f"Regime: {regime_scalar:.1f}\n"
+                    f"DD scalar: {dd_scalar:.1f}\n"
+                    f"Selected: {', '.join(selected) if selected else 'None'}\n"
+                    f"Target: {json.dumps({k: f'{v:.1%}' for k, v in target_weights.items()})}"
+                )
+
                 logger.log_signal({
                     "time": now.isoformat(),
                     "regime_scalar": regime_scalar,
@@ -464,8 +483,28 @@ def main():
                 if trades:
                     logger.log_trade(trades)
                     print(f"  Executed {len(trades)} trades")
+
+                    trade_lines = []
+                    for t in trades:
+                        trade_lines.append(
+                            f"{t['side']} {t['coin']} "
+                            f"amt={t['amount']} "
+                            f"~${t['value']:,.0f}"
+                        )
+
+                    send_telegram(
+                        f"✅ Trades Executed ({len(trades)})\n"
+                        + "\n".join(trade_lines)
+                        + f"\nPortfolio: ${total_value:,.2f}"
+                    )
                 else:
                     print("  No trades needed")
+                    send_telegram(
+                        f"ℹ️ No trades needed\n"
+                        f"Time: {now.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+                        f"Portfolio: ${total_value:,.2f}\n"
+                        f"Selected: {', '.join(selected) if selected else 'None'}"
+                    )
 
                 time.sleep(3)
                 total_value2, weights2, _ = portfolio.get_state()
@@ -502,11 +541,19 @@ def main():
 
         except KeyboardInterrupt:
             print("\n\nBot stopped by user.")
+            send_telegram("🛑 Bot stopped manually.")
             break
         except Exception as e:
             print(f"\n[ERROR] {e}")
             import traceback
-            traceback.print_exc()
+            tb = traceback.format_exc()
+            print(tb)
+
+            send_telegram(
+                f"❌ BOT ERROR\n"
+                f"Time: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+                f"Error: {str(e)}"
+            )
 
         time.sleep(PRICE_POLL_INTERVAL)
 
