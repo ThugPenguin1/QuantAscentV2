@@ -1,0 +1,29 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs
+logs/
+*.log
+*.jsonl
+archive/
+# Data / outputs
+analysis/*.png
+analysis/*.csv
+analysis/*.json
+data/raw/
+data/processed/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+tempCodeRunnerFile.py
+# Jupyter
+.ipynb_checkpoints/
