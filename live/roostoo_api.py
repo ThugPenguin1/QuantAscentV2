@@ -81,16 +81,27 @@ class RoostooAPI:
                 params=payload,
                 timeout=10
             )
-            data = r.json()
+
+            text = r.text.strip()
+            if not text:
+                print("[API ERROR] balance: empty response")
+                return None
+
+            try:
+                data = r.json()
+            except Exception:
+                print(f"[API ERROR] balance non-JSON response: {text[:500]}")
+                return None
+
             if data.get("Success"):
-                # Roostoo returns SpotWallet, not Wallet
                 return data.get("SpotWallet") or data.get("Wallet", {})
+
             print(f"[API] balance error: {data.get('ErrMsg')}")
             return None
+
         except Exception as e:
             print(f"[API ERROR] balance: {e}")
             return None
-
     def place_order(self, pair, side, quantity, price=None, order_type=None):
         self._rate_limit()
 
